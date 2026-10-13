@@ -1,5 +1,6 @@
 import React from 'react';
 import { ShieldAlert, UserCheck } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 
 export default function HumanApprovalBanner() {
   return (
@@ -17,10 +18,13 @@ export default function HumanApprovalBanner() {
           </p>
         </div>
       </div>
-      <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-300 text-xs font-medium border border-amber-500/30 shrink-0">
+      <Badge
+        variant="outline"
+        className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-300 text-xs font-medium border-amber-500/30 shrink-0"
+      >
         <UserCheck className="w-4 h-4" />
         Human Reviewer Required
-      </div>
+      </Badge>
     </div>
   );
 }

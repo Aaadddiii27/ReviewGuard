@@ -1,33 +1,63 @@
-import React, { useEffect, useState } from 'react';
-import { BarChart3, TrendingUp, Layers, Clock, ShieldCheck } from 'lucide-react';
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, PieChart, Pie } from 'recharts';
-import { fetchAnalytics } from '../services/api';
-import StatCard from '../components/StatCard';
+import React from 'react';
+import { BarChart3, TrendingUp, Layers, Clock, AlertCircle } from 'lucide-react';
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Cell,
+  PieChart,
+  Pie,
+} from 'recharts';
+import { useQuery } from '@tanstack/react-query';
+import { fetchAnalytics } from '@/services/api';
+import StatCard from '@/components/StatCard';
+import { Card } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function AnalyticsView() {
-  const [analytics, setAnalytics] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const {
+    data: analytics,
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ['analytics'],
+    queryFn: fetchAnalytics,
+  });
 
-  useEffect(() => {
-    async function load() {
-      try {
-        setLoading(true);
-        const data = await fetchAnalytics();
-        setAnalytics(data);
-      } catch (err) {
-        console.error('Failed to load analytics:', err);
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
-  }, []);
-
-  if (loading) {
+  if (isLoading) {
     return (
-      <div className="p-12 text-center text-slate-400 text-xs">
-        <div className="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-        Aggregating system telemetry...
+      <div className="p-6 sm:p-8 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-300">
+        <Skeleton className="h-8 w-64 bg-slate-800" />
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {[1, 2, 3].map((i) => (
+            <Card key={i} className="p-6 bg-[#111827] border-slate-800 space-y-3">
+              <Skeleton className="h-4 w-28 bg-slate-800" />
+              <Skeleton className="h-8 w-20 bg-slate-800" />
+            </Card>
+          ))}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card className="p-6 bg-[#111827] border-slate-800 h-80">
+            <Skeleton className="h-full w-full bg-slate-800" />
+          </Card>
+          <Card className="p-6 bg-[#111827] border-slate-800 h-80">
+            <Skeleton className="h-full w-full bg-slate-800" />
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-8 max-w-4xl mx-auto">
+        <Card className="p-6 bg-[#111827] border-rose-500/30 text-rose-300 text-sm flex items-center gap-2">
+          <AlertCircle className="w-5 h-5 shrink-0" />
+          <span>Failed to load analytics data.</span>
+        </Card>
       </div>
     );
   }
@@ -86,7 +116,7 @@ export default function AnalyticsView() {
       {/* Charts row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Severity Chart */}
-        <div className="bg-[#111827] border border-slate-800 rounded-2xl p-6">
+        <Card className="bg-[#111827] border-slate-800 p-6">
           <h3 className="text-base font-semibold text-white mb-1">Findings by Severity Level</h3>
           <p className="text-xs text-slate-400 mb-6">Objective severity calibration distribution</p>
           <div className="h-64 w-full">
@@ -95,7 +125,12 @@ export default function AnalyticsView() {
                 <XAxis dataKey="name" stroke="#64748b" fontSize={12} tickLine={false} />
                 <YAxis stroke="#64748b" fontSize={12} tickLine={false} allowDecimals={false} />
                 <Tooltip
-                  contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px', fontSize: '12px' }}
+                  contentStyle={{
+                    backgroundColor: '#0f172a',
+                    borderColor: '#334155',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                  }}
                 />
                 <Bar dataKey="count" radius={[6, 6, 0, 0]}>
                   {severityData.map((entry, index) => (
@@ -105,10 +140,10 @@ export default function AnalyticsView() {
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </div>
+        </Card>
 
         {/* Categories Chart */}
-        <div className="bg-[#111827] border border-slate-800 rounded-2xl p-6">
+        <Card className="bg-[#111827] border-slate-800 p-6">
           <h3 className="text-base font-semibold text-white mb-1">Defects by Category</h3>
           <p className="text-xs text-slate-400 mb-6">Security vulnerabilities vs logical bugs vs quality</p>
           <div className="h-64 w-full flex items-center justify-center">
@@ -125,21 +160,28 @@ export default function AnalyticsView() {
                     outerRadius={90}
                     paddingAngle={5}
                     dataKey="value"
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    label={({ name, percent }: { name: string; percent: number }) =>
+                      `${name} ${(percent * 100).toFixed(0)}%`
+                    }
                     labelLine={false}
                   >
-                    {categoryData.map((entry, index) => (
+                    {categoryData.map((_, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
                   <Tooltip
-                    contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px', fontSize: '12px' }}
+                    contentStyle={{
+                      backgroundColor: '#0f172a',
+                      borderColor: '#334155',
+                      borderRadius: '8px',
+                      fontSize: '12px',
+                    }}
                   />
                 </PieChart>
               </ResponsiveContainer>
             )}
           </div>
-        </div>
+        </Card>
       </div>
     </div>
   );

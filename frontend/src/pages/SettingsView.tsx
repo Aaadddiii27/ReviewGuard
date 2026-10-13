@@ -1,8 +1,12 @@
 import React, { useState } from 'react';
-import { Settings as SettingsIcon, Save, Key, Cpu, Sliders, Shield } from 'lucide-react';
+import { Settings as SettingsIcon, Save, Key, Cpu, Sliders } from 'lucide-react';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { useToast } from '@/hooks/use-toast';
 
 export default function SettingsView() {
-  const [aiProvider, setAiProvider] = useState('ollama');
+  const [aiProvider, setAiProvider] = useState<'ollama' | 'gemini'>('ollama');
   const [ollamaModel, setOllamaModel] = useState('qwen2.5-coder:1.5b');
   const [geminiKey, setGeminiKey] = useState('');
   const [githubToken, setGithubToken] = useState('');
@@ -10,9 +14,15 @@ export default function SettingsView() {
   const [staticAnalysis, setStaticAnalysis] = useState(true);
   const [saved, setSaved] = useState(false);
 
-  const handleSave = (e) => {
+  const { toast } = useToast();
+
+  const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     setSaved(true);
+    toast({
+      title: 'Configuration Saved',
+      description: 'ReviewGuard settings have been saved successfully.',
+    });
     setTimeout(() => setSaved(false), 2500);
   };
 
@@ -30,7 +40,7 @@ export default function SettingsView() {
 
       <form onSubmit={handleSave} className="space-y-6">
         {/* Engine Selection */}
-        <div className="bg-[#111827] border border-slate-800 rounded-2xl p-6 space-y-4">
+        <Card className="bg-[#111827] border-slate-800 p-6 space-y-4">
           <h3 className="text-base font-semibold text-white flex items-center gap-2">
             <Cpu className="w-5 h-5 text-emerald-400" />
             AI Review Provider
@@ -87,29 +97,29 @@ export default function SettingsView() {
           {aiProvider === 'ollama' ? (
             <div>
               <label className="block text-xs font-medium text-slate-300 mb-1">Ollama Model</label>
-              <input
+              <Input
                 type="text"
                 value={ollamaModel}
                 onChange={(e) => setOllamaModel(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 font-mono focus:outline-none focus:border-emerald-500"
+                className="bg-slate-950 border-slate-800 text-slate-200 text-xs font-mono"
               />
             </div>
           ) : (
             <div>
               <label className="block text-xs font-medium text-slate-300 mb-1">Gemini API Key</label>
-              <input
+              <Input
                 type="password"
                 value={geminiKey}
                 onChange={(e) => setGeminiKey(e.target.value)}
                 placeholder="AIzaSy..."
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 font-mono focus:outline-none focus:border-emerald-500"
+                className="bg-slate-950 border-slate-800 text-slate-200 text-xs font-mono"
               />
             </div>
           )}
-        </div>
+        </Card>
 
         {/* Deduplication & Static Analysis */}
-        <div className="bg-[#111827] border border-slate-800 rounded-2xl p-6 space-y-4">
+        <Card className="bg-[#111827] border-slate-800 p-6 space-y-4">
           <h3 className="text-base font-semibold text-white flex items-center gap-2">
             <Sliders className="w-5 h-5 text-emerald-400" />
             Deduplication &amp; Noise Reduction Tuning
@@ -146,10 +156,10 @@ export default function SettingsView() {
               className="w-4 h-4 accent-emerald-500 rounded bg-slate-950 border-slate-800"
             />
           </div>
-        </div>
+        </Card>
 
         {/* GitHub Secrets */}
-        <div className="bg-[#111827] border border-slate-800 rounded-2xl p-6 space-y-4">
+        <Card className="bg-[#111827] border-slate-800 p-6 space-y-4">
           <h3 className="text-base font-semibold text-white flex items-center gap-2">
             <Key className="w-5 h-5 text-emerald-400" />
             GitHub App / Token Integration
@@ -157,18 +167,18 @@ export default function SettingsView() {
 
           <div>
             <label className="block text-xs font-medium text-slate-300 mb-1">GitHub Personal Access Token</label>
-            <input
+            <Input
               type="password"
               value={githubToken}
               onChange={(e) => setGithubToken(e.target.value)}
               placeholder="ghp_..."
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 font-mono focus:outline-none focus:border-emerald-500"
+              className="bg-slate-950 border-slate-800 text-slate-200 text-xs font-mono"
             />
             <p className="text-[11px] text-slate-400 mt-1">
               Used for posting advisory comments back to GitHub PRs via Actions or Webhooks.
             </p>
           </div>
-        </div>
+        </Card>
 
         {/* Save button */}
         <div className="flex items-center justify-end gap-3">
@@ -177,13 +187,13 @@ export default function SettingsView() {
               Configuration Saved Successfully!
             </span>
           )}
-          <button
+          <Button
             type="submit"
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 shadow-lg shadow-emerald-950/40 transition"
+            className="inline-flex items-center gap-2 px-5 py-2.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 shadow-lg shadow-emerald-950/40"
           >
             <Save className="w-4 h-4" />
             Save Configuration
-          </button>
+          </Button>
         </div>
       </form>
     </div>

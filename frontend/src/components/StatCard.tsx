@@ -1,6 +1,25 @@
 import React from 'react';
+import type { LucideIcon } from 'lucide-react';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 
-export default function StatCard({ title, value, subtitle, icon: Icon, trend, color = 'emerald' }) {
+export interface StatCardProps {
+  title: string;
+  value: string | number;
+  subtitle?: string;
+  icon?: LucideIcon;
+  trend?: string;
+  color?: 'emerald' | 'rose' | 'amber' | 'blue' | 'purple';
+}
+
+export default function StatCard({
+  title,
+  value,
+  subtitle,
+  icon: Icon,
+  trend,
+  color = 'emerald',
+}: StatCardProps) {
   const colorMap = {
     emerald: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
     rose: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
@@ -12,7 +31,7 @@ export default function StatCard({ title, value, subtitle, icon: Icon, trend, co
   const activeColor = colorMap[color] || colorMap.emerald;
 
   return (
-    <div className="bg-[#111827]/80 border border-slate-800 rounded-2xl p-5 hover:border-slate-700 transition-all duration-200">
+    <Card className="bg-[#111827]/80 border-slate-800 rounded-2xl p-5 hover:border-slate-700 transition-all duration-200">
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">{title}</span>
         {Icon && (
@@ -24,12 +43,12 @@ export default function StatCard({ title, value, subtitle, icon: Icon, trend, co
       <div className="mt-3 flex items-baseline gap-2">
         <span className="text-2xl sm:text-3xl font-bold tracking-tight text-white">{value}</span>
         {trend && (
-          <span className="text-xs font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
+          <Badge variant="outline" className="text-xs font-semibold text-emerald-400 bg-emerald-500/10 border-emerald-500/20">
             {trend}
-          </span>
+          </Badge>
         )}
       </div>
       {subtitle && <p className="text-xs text-slate-400 mt-2">{subtitle}</p>}
-    </div>
+    </Card>
   );
 }
