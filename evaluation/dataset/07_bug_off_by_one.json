@@ -1,0 +1,11 @@
+{
+  "id": "eval-07-off-by-one",
+  "name": "Off-by-One Array Index Loop",
+  "language": "python",
+  "is_clean": false,
+  "category": "BUG",
+  "expected_severity": "MEDIUM",
+  "expected_line": 5,
+  "diff": "diff --git a/app/search.py b/app/search.py\nindex 0000000..1111111 100644\n--- a/app/search.py\n+++ b/app/search.py\n@@ -1,4 +1,7 @@\n def process_tokens(tokens):\n+    n = len(tokens)\n+    # Loop bounds exceed list length\n+    for i in range(n + 1):\n+        print(tokens[i])\n",
+  "explanation": "Iterating up to range(n + 1) raises IndexError on the final index."
+}

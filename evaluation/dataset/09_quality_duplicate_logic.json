@@ -1,0 +1,11 @@
+{
+  "id": "eval-09-duplicate-suppression",
+  "name": "Overlapping Duplicate SQL Injection Findings",
+  "language": "python",
+  "is_clean": false,
+  "category": "SECURITY",
+  "expected_severity": "CRITICAL",
+  "expected_line": 6,
+  "diff": "diff --git a/app/admin.py b/app/admin.py\nindex 0000000..1111111 100644\n--- a/app/admin.py\n+++ b/app/admin.py\n@@ -1,4 +1,8 @@\n def export_audit_log(org_id):\n+    # Multiple statements constructing unescaped SQL\n+    query_str = 'SELECT * FROM logs WHERE org = ' + str(org_id)\n+    cursor.execute(query_str)\n",
+  "explanation": "Tests whether multiple overlapping findings (query string formatting + cursor execution) are deduplicated into a single active finding."
+}

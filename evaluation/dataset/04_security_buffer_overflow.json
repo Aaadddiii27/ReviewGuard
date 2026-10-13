@@ -1,0 +1,11 @@
+{
+  "id": "eval-04-buffer-overflow",
+  "name": "Buffer Overflow via gets() in C++",
+  "language": "cpp",
+  "is_clean": false,
+  "category": "SECURITY",
+  "expected_severity": "CRITICAL",
+  "expected_line": 5,
+  "diff": "diff --git a/src/parser.cpp b/src/parser.cpp\nindex 0000000..1111111 100644\n--- a/src/parser.cpp\n+++ b/src/parser.cpp\n@@ -1,4 +1,7 @@\n #include <iostream>\n \n void read_username() {\n+    char buffer[64];\n+    gets(buffer);\n }\n",
+  "explanation": "gets() does not perform bounds checking, leading to stack buffer overflow."
+}

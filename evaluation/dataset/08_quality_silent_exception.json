@@ -1,0 +1,11 @@
+{
+  "id": "eval-08-silent-exception",
+  "name": "Silent Exception Swallowing",
+  "language": "python",
+  "is_clean": false,
+  "category": "QUALITY",
+  "expected_severity": "MEDIUM",
+  "expected_line": 6,
+  "diff": "diff --git a/app/billing.py b/app/billing.py\nindex 0000000..1111111 100644\n--- a/app/billing.py\n+++ b/app/billing.py\n@@ -1,4 +1,7 @@\n def charge_customer(customer_id, amount):\n     try:\n         gateway.charge(customer_id, amount)\n+    except Exception:\n+        # Silently discarding payment processing failure\n+        pass\n",
+  "explanation": "except Exception: pass swallows errors silently without logging or alerting."
+}

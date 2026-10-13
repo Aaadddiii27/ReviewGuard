@@ -1,0 +1,11 @@
+{
+  "id": "eval-06-null-pointer",
+  "name": "JavaScript Null Pointer Dereference",
+  "language": "javascript",
+  "is_clean": false,
+  "category": "BUG",
+  "expected_severity": "MEDIUM",
+  "expected_line": 4,
+  "diff": "diff --git a/src/profile.js b/src/profile.js\nindex 0000000..1111111 100644\n--- a/src/profile.js\n+++ b/src/profile.js\n@@ -1,3 +1,6 @@\n function getDisplayName(user) {\n-    return user ? user.profile.name : 'Guest';\n+    // Accessing nested profile property without verifying user object\n+    return user.profile.name.toUpperCase();\n }\n",
+  "explanation": "Accessing nested property of possibly undefined/null user parameter causes TypeError crash."
+}

@@ -1,0 +1,11 @@
+{
+  "id": "eval-11-clean-user-auth",
+  "name": "Clean Parameterized Database Query",
+  "language": "python",
+  "is_clean": true,
+  "category": "CLEAN",
+  "expected_severity": null,
+  "expected_line": null,
+  "diff": "diff --git a/app/auth.py b/app/auth.py\nindex 0000000..1111111 100644\n--- a/app/auth.py\n+++ b/app/auth.py\n@@ -1,4 +1,8 @@\n+import sqlite3\n+\n+def get_user_by_id(db: sqlite3.Connection, user_id: int):\n+    # Secure parameterized query with placeholders\n+    cursor = db.cursor()\n+    cursor.execute('SELECT id, username, email FROM users WHERE id = ?', (user_id,))\n+    return cursor.fetchone()\n",
+  "explanation": "Correct, secure query using parameterized placeholder '?'. System should not raise false positive SQL injection."
+}

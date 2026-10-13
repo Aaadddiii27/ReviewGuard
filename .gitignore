@@ -1,0 +1,84 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+*.so
+.mypy_cache/
+.ruff_cache/
+.pytype/
+
+# Virtual environments
+backend/venv/
+venv/
+env/
+.env
+.env.*
+!.env.example
+
+# Databases (local dev only)
+*.db
+*.sqlite
+*.sqlite3
+
+# Pytest / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+*.cover
+
+# Node / frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+node_modules/
+dist/
+
+# Build outputs
+*.min.js
+*.min.css
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+logs/
+
+# Model weights (can be large)
+model/*.bin
+model/*.gguf
+model/*.pt
+model/*.ckpt
+
+# Evaluation results (generated, not source)
+evaluation/results/
+
+# Secrets
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+
+# Alembic versions that are auto-generated
+# (keep alembic/ tracked but not __pycache__)
+
+# Docker
+.dockerignore

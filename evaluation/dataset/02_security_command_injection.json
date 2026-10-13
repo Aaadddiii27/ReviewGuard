@@ -1,0 +1,11 @@
+{
+  "id": "eval-02-cmdi",
+  "name": "Command Injection via shell=True",
+  "language": "python",
+  "is_clean": false,
+  "category": "SECURITY",
+  "expected_severity": "HIGH",
+  "expected_line": 5,
+  "diff": "diff --git a/app/tasks.py b/app/tasks.py\nindex 0000000..1111111 100644\n--- a/app/tasks.py\n+++ b/app/tasks.py\n@@ -1,3 +1,7 @@\n import subprocess\n \n def ping_host(host):\n+    cmd = f\"ping -c 1 {host}\"\n+    subprocess.run(cmd, shell=True)\n",
+  "explanation": "subprocess.run with shell=True and f-string allows arbitrary shell metacharacter injection."
+}

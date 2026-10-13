@@ -1,0 +1,11 @@
+{
+  "id": "eval-01-sqli",
+  "name": "Python SQL Injection",
+  "language": "python",
+  "is_clean": false,
+  "category": "SECURITY",
+  "expected_severity": "CRITICAL",
+  "expected_line": 7,
+  "diff": "diff --git a/app/db.py b/app/db.py\nindex 0000000..1111111 100644\n--- a/app/db.py\n+++ b/app/db.py\n@@ -1,5 +1,9 @@\n import sqlite3\n \n def get_user_records(user_id):\n+    conn = sqlite3.connect('app.db')\n+    cursor = conn.cursor()\n+    query = \"SELECT * FROM users WHERE id = '\" + str(user_id) + \"'\"\n+    return cursor.execute(query).fetchall()\n",
+  "explanation": "Concatenating user_id directly into SQL query without query parameters."
+}

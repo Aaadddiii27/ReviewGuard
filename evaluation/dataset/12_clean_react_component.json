@@ -1,0 +1,11 @@
+{
+  "id": "eval-12-clean-react-component",
+  "name": "Clean React Component With Safe State",
+  "language": "javascript",
+  "is_clean": true,
+  "category": "CLEAN",
+  "expected_severity": null,
+  "expected_line": null,
+  "diff": "diff --git a/src/UserProfile.jsx b/src/UserProfile.jsx\nindex 0000000..1111111 100644\n--- a/src/UserProfile.jsx\n+++ b/src/UserProfile.jsx\n@@ -1,4 +1,11 @@\n+import React, { useState } from 'react';\n+\n+export function UserProfile({ username }) {\n+  const [count, setCount] = useState(0);\n+  return (\n+    <div className=\"profile-card\">\n+      <h3>Welcome, {username}</h3>\n+      <button onClick={() => setCount(prev => prev + 1)}>Clicks: {count}</button>\n+    </div>\n+  );\n+}\n",
+  "explanation": "Safe React component with JSX auto-escaping and functional setState. Zero false positives expected."
+}
