@@ -4,7 +4,7 @@ from pydantic import BaseModel
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-from app.schemas.finding import Finding, FindingStatus, FindingSeverity
+from app.schemas.finding import Finding, FindingStatus, FindingSeverity, FindingSource
 from app.core.config import settings
 from app.core.logging import logger
 
@@ -101,8 +101,16 @@ class DeduplicationEngine:
                     line_diff = abs(f1.line - f2.line)
                     line_proximity = (line_diff <= 5)
 
-                # Check shared key security concepts
-                security_concepts = {"sql", "injection", "sqli", "eval", "exec", "rce", "password", "secret", "token", "xss", "overflow", "buffer"}
+                # Findings across different files must NEVER be deduplicated against each other
+                if not same_file:
+                    continue
+
+                # Check shared key security & bug concepts
+                security_concepts = {
+                    "sql", "injection", "sqli", "eval", "exec", "rce", "password",
+                    "secret", "token", "xss", "overflow", "buffer", "null", "pointer",
+                    "exception", "default", "mutable", "command", "shell"
+                }
                 words1 = set(t1.split())
                 words2 = set(t2.split())
                 shared_concepts = (words1 & words2) & security_concepts
@@ -110,33 +118,38 @@ class DeduplicationEngine:
                 is_duplicate = False
                 final_score = semantic_text_sim
 
-                # Condition 1: High semantic similarity anywhere
+                # Condition 1: High semantic similarity on the same file
                 if semantic_text_sim >= self.threshold:
                     is_duplicate = True
                     final_score = semantic_text_sim
 
-                # Condition 2: Same file + same category + line proximity + some shared context
-                elif same_file and same_category and line_proximity and (semantic_text_sim >= 0.20 or bool(shared_concepts)):
+                # Condition 2: Same file + line proximity (<= 5 lines) + shared security concepts (even if category differs)
+                elif line_proximity and bool(shared_concepts):
+                    is_duplicate = True
+                    final_score = max(0.80, semantic_text_sim + 0.35)
+
+                # Condition 3: Same file + same category + line proximity + some shared context
+                elif same_category and line_proximity and (semantic_text_sim >= 0.20 or bool(shared_concepts)):
                     is_duplicate = True
                     final_score = max(0.75, semantic_text_sim + 0.30)
 
-                # Condition 3: Same file + same category + same line
-                elif same_file and same_category and (f1.line == f2.line) and (f1.line is not None):
+                # Condition 4: Same file + same line + shared concepts or moderate similarity
+                elif (f1.line == f2.line) and (f1.line is not None) and (semantic_text_sim >= 0.25 or bool(shared_concepts) or same_category):
                     is_duplicate = True
-                    final_score = 0.90
+                    final_score = max(0.85, semantic_text_sim + 0.40)
 
                 if is_duplicate:
                     # Choose which finding is primary to keep:
-                    # Prefer higher severity, higher confidence, AST over AI
-                    rank1 = (SEVERITY_ORDER.get(f1.severity, 0), f1.confidence, 1 if f1.source != "AI" else 0)
-                    rank2 = (SEVERITY_ORDER.get(f2.severity, 0), f2.confidence, 1 if f2.source != "AI" else 0)
+                    # Prefer higher severity, then deterministic static AST over AI, then higher confidence
+                    rank1 = (SEVERITY_ORDER.get(f1.severity, 0), 1 if f1.source != FindingSource.AI else 0, f1.confidence)
+                    rank2 = (SEVERITY_ORDER.get(f2.severity, 0), 1 if f2.source != FindingSource.AI else 0, f2.confidence)
 
                     if rank1 >= rank2:
                         suppressed_indices.add(j)
-                        suppression_map[j] = (i, round(final_score, 3))
+                        suppression_map[j] = (i, round(min(1.0, final_score), 3))
                     else:
                         suppressed_indices.add(i)
-                        suppression_map[i] = (j, round(final_score, 3))
+                        suppression_map[i] = (j, round(min(1.0, final_score), 3))
                         break
 
         active_findings: List[Finding] = []

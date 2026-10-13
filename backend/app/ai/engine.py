@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 from app.ai.base import BaseAIProvider
 from app.ai.ollama_provider import OllamaReviewProvider
 from app.ai.gemini_provider import GeminiReviewProvider
@@ -26,15 +26,17 @@ class AIReviewEngine:
         annotated_diff: str,
         pr_title: str = "",
         pr_description: str = ""
-    ) -> Tuple[str, List[Finding]]:
-        """Reviews a single file diff using the active AI provider, with graceful fallback handling."""
+    ) -> Tuple[str, List[Finding], Optional[str]]:
+        """Reviews a single file diff using the active AI provider, with graceful fallback handling and honest error reporting."""
         try:
             summary, findings = await self.provider.review_diff(file_path, annotated_diff, pr_title, pr_description)
-            return summary, findings
+            return summary, findings, None
         except Exception as e:
+            err_msg = f"{self.provider_name}: {str(e)}"
             logger.error(f"Error executing AI review with provider {self.provider_name}: {e}")
             # Fallback to mock if test environment
             if settings.ENVIRONMENT in ("test", "ci"):
                 logger.info("Falling back to MockReviewProvider in test/ci environment.")
-                return await MockReviewProvider().review_diff(file_path, annotated_diff, pr_title, pr_description)
-            return "", []
+                summary, findings = await MockReviewProvider().review_diff(file_path, annotated_diff, pr_title, pr_description)
+                return summary, findings, None
+            return "", [], err_msg

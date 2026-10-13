@@ -10,6 +10,9 @@ import FindingsExplorer from './pages/FindingsExplorer';
 import AnalyticsView from './pages/AnalyticsView';
 import BenchmarkView from './pages/BenchmarkView';
 import SettingsView from './pages/SettingsView';
+import RepositoriesView from './pages/RepositoriesView';
+import ManualReviewView from './pages/ManualReviewView';
+import LoginView from './pages/LoginView';
 import TriggerReviewModal from './components/TriggerReviewModal';
 import { Toaster } from './components/ui/toaster';
 import type { Review } from './types';
@@ -49,12 +52,15 @@ function AppContent() {
         <main className="flex-1 overflow-y-auto min-h-[calc(100vh-65px)]">
           <Routes>
             <Route path="/" element={<Dashboard onTriggerClick={() => setModalOpen(true)} />} />
+            <Route path="/repos" element={<RepositoriesView />} />
+            <Route path="/manual" element={<ManualReviewView />} />
             <Route path="/pulls" element={<PullRequests />} />
             <Route path="/reviews/:id" element={<ReviewDetails />} />
             <Route path="/findings" element={<FindingsExplorer />} />
             <Route path="/analytics" element={<AnalyticsView />} />
             <Route path="/benchmark" element={<BenchmarkView />} />
             <Route path="/settings" element={<SettingsView />} />
+            <Route path="/login" element={<LoginView />} />
           </Routes>
         </main>
       </div>

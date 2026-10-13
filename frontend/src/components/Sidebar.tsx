@@ -8,6 +8,8 @@ import {
   Award,
   Settings,
   Shield,
+  FolderGit2,
+  Code2,
   type LucideIcon,
 } from 'lucide-react';
 import {
@@ -25,6 +27,8 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { label: 'Dashboard', path: '/', icon: LayoutDashboard },
+  { label: 'Repositories', path: '/repos', icon: FolderGit2 },
+  { label: 'Review Studio', path: '/manual', icon: Code2 },
   { label: 'Pull Requests', path: '/pulls', icon: GitPullRequest },
   { label: 'Findings Explorer', path: '/findings', icon: Search },
   { label: 'Analytics', path: '/analytics', icon: BarChart3 },

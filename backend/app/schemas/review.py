@@ -21,19 +21,21 @@ class ReviewSummary(BaseModel):
     key_concerns: List[str] = Field(default_factory=list)
     human_approval_reminder: str = "⚠️ AI-generated advisory feedback. Human approval is strictly required before merge."
     review_duration_ms: int = 0
+    stage_latencies: Dict[str, int] = Field(default_factory=dict)
+    error_details: Optional[str] = None
     engine_used: str = "qwen2.5-coder:1.5b"
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
 class ReviewRequest(BaseModel):
     repository: str = Field(..., description="Repository full name, e.g., 'owner/repo'")
-    pr_number: Optional[int] = Field(None, description="GitHub Pull Request number")
-    commit_sha: Optional[str] = Field(None, description="Commit SHA being reviewed")
-    pr_title: Optional[str] = Field(None, description="PR title")
-    pr_description: Optional[str] = Field(None, description="PR description or body")
-    diff_text: Optional[str] = Field(None, description="Unified git diff string if provided directly")
+    pr_number: Optional[int] = None
+    commit_sha: Optional[str] = None
+    pr_title: Optional[str] = None
+    pr_description: Optional[str] = None
+    diff_text: Optional[str] = None
     post_comments_to_github: bool = Field(default=False, description="Whether to post review comments back to GitHub PR")
-    github_token: Optional[str] = Field(None, description="Optional per-request GitHub token override")
+    github_token: Optional[str] = None
 
 
 class ChangedFile(BaseModel):
@@ -52,7 +54,8 @@ class ReviewResult(BaseModel):
     pr_number: Optional[int] = None
     commit_sha: Optional[str] = None
     pr_title: Optional[str] = None
-    status: str = "COMPLETED" # COMPLETED, FAILED, IN_PROGRESS
+    status: str = "COMPLETED" # COMPLETED, PARTIAL, FAILED
+    error_details: Optional[str] = None
     summary: ReviewSummary
     findings: List[Finding] = Field(default_factory=list)
     suppressed_findings: List[Finding] = Field(default_factory=list)

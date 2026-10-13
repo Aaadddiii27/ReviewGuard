@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Request, Header, HTTPException, BackgroundTasks, Depends
 from sqlalchemy.orm import Session
-from app.models.database import get_db
+from app.models.database import get_db, DBReview
 from app.github.webhook import WebhookValidator
 from app.github.client import GitHubClient
 from app.schemas.review import ReviewRequest
@@ -38,7 +38,40 @@ async def github_webhook_endpoint(
 
     logger.info(f"Received GitHub PR webhook for {repo} #{pr_num} (action={pr_data['action']})")
 
-    async def _process_webhook_review():
+    # Idempotency check: Don't re-run review if already completed for this exact commit SHA
+    if commit_sha:
+        existing = db.query(DBReview).filter(
+            DBReview.repository_name == repo,
+            DBReview.pr_number == pr_num,
+            DBReview.commit_sha == commit_sha,
+            DBReview.status == "COMPLETED"
+        ).first()
+        if existing:
+            logger.info(f"Idempotent skip: PR #{pr_num} at commit {commit_sha} was already reviewed ({existing.id})")
+            return {
+                "status": "already_reviewed",
+                "repository": repo,
+                "pr_number": pr_num,
+                "review_id": existing.id
+            }
+
+    # Create durable background job record
+    import uuid
+    from app.models.database import DBReviewJob
+    from app.api.jobs import execute_review_job_worker
+
+    job_id = str(uuid.uuid4())
+    job = DBReviewJob(
+        id=job_id,
+        repository_name=repo,
+        pr_number=pr_num,
+        commit_sha=commit_sha,
+        status="QUEUED"
+    )
+    db.add(job)
+    db.commit()
+
+    async def _process_webhook_job():
         try:
             gh_client = GitHubClient()
             diff_text = await gh_client.get_pr_diff(repo, pr_num)
@@ -51,27 +84,22 @@ async def github_webhook_endpoint(
                 diff_text=diff_text,
                 post_comments_to_github=True
             )
-            # Create a separate session for background task
-            from app.models.database import SessionLocal
-            with SessionLocal() as bg_db:
-                orchestrator = ReviewOrchestrator()
-                result = await orchestrator.execute_review(review_req, db=bg_db)
-                
-                # Post comments to GitHub
-                await gh_client.post_review(
-                    repo=repo,
-                    pr_number=pr_num,
-                    commit_sha=commit_sha,
-                    summary=result.summary,
-                    findings=result.findings
-                )
+            await execute_review_job_worker(job_id, review_req)
         except Exception as e:
-            logger.error(f"Error handling webhook review for {repo} #{pr_num}: {e}")
+            logger.error(f"Error preparing webhook review for {repo} #{pr_num}: {e}")
+            from app.models.database import SessionLocal
+            with SessionLocal() as err_db:
+                j = err_db.query(DBReviewJob).filter(DBReviewJob.id == job_id).first()
+                if j:
+                    j.status = "FAILED"
+                    j.error_message = str(e)
+                    err_db.commit()
 
-    background_tasks.add_task(_process_webhook_review)
+    background_tasks.add_task(_process_webhook_job)
 
     return {
         "status": "accepted",
+        "job_id": job_id,
         "repository": repo,
         "pr_number": pr_num,
         "action": pr_data["action"]

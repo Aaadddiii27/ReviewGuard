@@ -143,33 +143,80 @@ class PythonASTVisitor(ast.NodeVisitor):
                     ))
         self.generic_visit(node)
 
+    @staticmethod
+    def _flatten_binop_add(node: ast.AST) -> List[ast.AST]:
+        """Recursively flattens an ast.BinOp tree with ast.Add into a flat list of operands."""
+        if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+            return PythonASTVisitor._flatten_binop_add(node.left) + PythonASTVisitor._flatten_binop_add(node.right)
+        return [node]
+
+    @staticmethod
+    def _is_sql_injection_binop(node: ast.BinOp) -> bool:
+        """Detects SQL injection in chained + operations or % formatting."""
+        sql_keywords = ("SELECT ", "INSERT INTO ", "INSERT ", "UPDATE ", "DELETE FROM ", "DELETE ", "DROP ", "WHERE ", "FROM ")
+        if isinstance(node.op, ast.Add):
+            operands = PythonASTVisitor._flatten_binop_add(node)
+            has_sql_const = False
+            has_dynamic_operand = False
+            for op in operands:
+                if isinstance(op, ast.Constant) and isinstance(op.value, str):
+                    val_upper = op.value.upper()
+                    if any(kw in val_upper for kw in sql_keywords):
+                        has_sql_const = True
+                elif isinstance(op, (ast.Name, ast.Attribute, ast.Call, ast.Subscript, ast.BinOp, ast.JoinedStr)):
+                    has_dynamic_operand = True
+            return has_sql_const and has_dynamic_operand
+        elif isinstance(node.op, ast.Mod):
+            if isinstance(node.left, ast.Constant) and isinstance(node.left.value, str):
+                val_upper = node.left.value.upper()
+                if any(kw in val_upper for kw in sql_keywords):
+                    return True
+        return False
+
+    @staticmethod
+    def _is_sql_injection_joinedstr(node: ast.JoinedStr) -> bool:
+        sql_keywords = ("SELECT ", "INSERT INTO ", "INSERT ", "UPDATE ", "DELETE FROM ", "DELETE ", "DROP ", "WHERE ", "FROM ")
+        has_sql_const = False
+        has_dynamic = False
+        for part in node.values:
+            if isinstance(part, ast.Constant) and isinstance(part.value, str):
+                if any(kw in part.value.upper() for kw in sql_keywords):
+                    has_sql_const = True
+            elif isinstance(part, ast.FormattedValue):
+                has_dynamic = True
+        return has_sql_const and has_dynamic
+
+    @staticmethod
+    def _is_sql_injection_format_call(node: ast.Call) -> bool:
+        sql_keywords = ("SELECT ", "INSERT INTO ", "INSERT ", "UPDATE ", "DELETE FROM ", "DELETE ", "DROP ", "WHERE ", "FROM ")
+        if isinstance(node.func, ast.Attribute) and node.func.attr == "format":
+            if isinstance(node.func.value, ast.Constant) and isinstance(node.func.value.value, str):
+                if any(kw in node.func.value.value.upper() for kw in sql_keywords):
+                    if node.args or node.keywords:
+                        return True
+        return False
+
     def visit_Assign(self, node: ast.Assign):
         lineno = getattr(node, "lineno", None)
         
-        # 1. SQL string formatting in assignment (e.g. query = "SELECT ..." % var)
+        # 1. SQL string formatting in assignment
         is_dynamic_sql = False
-        if isinstance(node.value, ast.BinOp) and isinstance(node.value.op, (ast.Mod, ast.Add)):
-            # Check left operand for SQL statement
-            left_str = ""
-            if isinstance(node.value.left, ast.Constant) and isinstance(node.value.left.value, str):
-                left_str = node.value.left.value.upper()
-            if any(k in left_str for k in ("SELECT ", "INSERT ", "UPDATE ", "DELETE ", "DROP ", "WHERE ")):
-                is_dynamic_sql = True
-        elif isinstance(node.value, ast.JoinedStr): # f-string
-            parts = [getattr(p, "value", "") for p in node.value.values if isinstance(p, ast.Constant)]
-            joined = " ".join(parts).upper()
-            if any(k in joined for k in ("SELECT ", "INSERT ", "UPDATE ", "DELETE ", "DROP ", "WHERE ")):
-                is_dynamic_sql = True
+        if isinstance(node.value, ast.BinOp):
+            is_dynamic_sql = self._is_sql_injection_binop(node.value)
+        elif isinstance(node.value, ast.JoinedStr):
+            is_dynamic_sql = self._is_sql_injection_joinedstr(node.value)
+        elif isinstance(node.value, ast.Call):
+            is_dynamic_sql = self._is_sql_injection_format_call(node.value)
 
         if is_dynamic_sql and self._is_relevant_line(lineno):
             self.findings.append(Finding(
-                title="SQL Injection hazard via formatted query string",
+                title="Potential SQL Injection via formatted query string",
                 category=FindingCategory.SECURITY,
                 severity=FindingSeverity.CRITICAL,
-                confidence=0.95,
+                confidence=0.96,
                 file=self.file_path,
                 line=lineno,
-                description="SQL query string is constructed via string interpolation/formatting.",
+                description="SQL query string is constructed via string interpolation or concatenation with variables.",
                 why_it_matters="Formatting SQL queries dynamically with user inputs exposes the database to SQL injection attacks.",
                 recommendation="Use parameterized queries with query parameters (placeholders).",
                 source=FindingSource.STATIC_AST
@@ -196,6 +243,57 @@ class PythonASTVisitor(ast.NodeVisitor):
                                     recommendation="Store credentials in environment variables or a secure secret manager (e.g. AWS Secrets Manager, Azure Key Vault).",
                                     source=FindingSource.STATIC_AST
                                 ))
+        self.generic_visit(node)
+
+    def visit_Return(self, node: ast.Return):
+        lineno = getattr(node, "lineno", None)
+        if node.value:
+            is_dynamic_sql = False
+            if isinstance(node.value, ast.BinOp):
+                is_dynamic_sql = self._is_sql_injection_binop(node.value)
+            elif isinstance(node.value, ast.JoinedStr):
+                is_dynamic_sql = self._is_sql_injection_joinedstr(node.value)
+            elif isinstance(node.value, ast.Call):
+                is_dynamic_sql = self._is_sql_injection_format_call(node.value)
+
+            if is_dynamic_sql and self._is_relevant_line(lineno):
+                self.findings.append(Finding(
+                    title="Potential SQL Injection in return expression",
+                    category=FindingCategory.SECURITY,
+                    severity=FindingSeverity.CRITICAL,
+                    confidence=0.96,
+                    file=self.file_path,
+                    line=lineno,
+                    description="SQL query string is concatenated and returned directly without parameterization.",
+                    why_it_matters="Dynamic query construction exposes database queries to arbitrary clause and condition injection.",
+                    recommendation="Use parameterized queries instead of string concatenation.",
+                    source=FindingSource.STATIC_AST
+                ))
+        self.generic_visit(node)
+
+    def visit_For(self, node: ast.For):
+        lineno = getattr(node, "lineno", None)
+        # Check for off-by-one pattern in range(n + 1) or range(len(x) + 1)
+        if isinstance(node.iter, ast.Call) and isinstance(node.iter.func, ast.Name) and node.iter.func.id == "range":
+            has_off_by_one = False
+            for arg in node.iter.args:
+                if isinstance(arg, ast.BinOp) and isinstance(arg.op, ast.Add):
+                    if isinstance(arg.right, ast.Constant) and arg.right.value == 1:
+                        # range(n + 1) or range(len(...) + 1)
+                        has_off_by_one = True
+            if has_off_by_one and self._is_relevant_line(lineno):
+                self.findings.append(Finding(
+                    title="Off-by-One Array Index Loop",
+                    category=FindingCategory.BUG,
+                    severity=FindingSeverity.MEDIUM,
+                    confidence=0.92,
+                    file=self.file_path,
+                    line=lineno,
+                    description="Loop bounds use `range(... + 1)` which exceeds the valid index range when indexing a collection.",
+                    why_it_matters="Iterating up to `range(length + 1)` will raise an `IndexError` on the final iteration.",
+                    recommendation="Remove `+ 1` from the range expression, e.g., use `range(n)` or iterate directly over items.",
+                    source=FindingSource.STATIC_AST
+                ))
         self.generic_visit(node)
 
 

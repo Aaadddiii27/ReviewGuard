@@ -93,4 +93,22 @@ class JavaScriptAnalyzer(BaseLanguageAnalyzer):
                     source=FindingSource.STATIC_AST
                 ))
 
+            # 6. Unsafe nested property dereference without optional chaining or null guard
+            if re.search(r'\b([a-zA-Z_$][a-zA-Z0-9_$]*)\.([a-zA-Z_$][a-zA-Z0-9_$]*)\.([a-zA-Z_$][a-zA-Z0-9_$]*)', line):
+                if "?." not in line and "&&" not in line and "if " not in line and "typeof" not in line:
+                    # Check if not an existing standard library chain like console.log or process.env or Math or document
+                    if not any(prefix in line for prefix in ("console.", "process.env.", "Math.", "document.", "window.", "Object.", "Array.", "this.")):
+                        findings.append(Finding(
+                            title="Unchecked nested property access (potential Null/Undefined Dereference)",
+                            category=FindingCategory.BUG,
+                            severity=FindingSeverity.MEDIUM,
+                            confidence=0.90,
+                            file=file_path,
+                            line=idx,
+                            description="Accessing deeply nested properties without verifying the parent object exists can cause TypeError crashes.",
+                            why_it_matters="If the intermediate object is null or undefined, execution halts immediately with an uncaught runtime TypeError.",
+                            recommendation="Use optional chaining (`?.`), e.g. `user?.profile?.name`, or perform an explicit null/undefined check beforehand.",
+                            source=FindingSource.STATIC_AST
+                        ))
+
         return findings

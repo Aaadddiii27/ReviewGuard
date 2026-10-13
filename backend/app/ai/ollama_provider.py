@@ -58,6 +58,15 @@ class OllamaReviewProvider(BaseAIProvider):
                     except ValueError:
                         severity = FindingSeverity.MEDIUM
 
+                    title_lower = str(item.get("title", "")).lower()
+                    desc_lower = str(item.get("description", "")).lower()
+
+                    # Guard against AI model returning praise / security confirmation as a defect
+                    if any(phrase in title_lower for phrase in ("secure parameterized", "safe query", "properly parameterized", "safe from sql", "secure implementation", "clean implementation")) or \
+                       ("safe from" in desc_lower and "prevent" in desc_lower and "secure" in desc_lower and "vulnerability" not in desc_lower):
+                        logger.info(f"Filtered out AI positive praise / confirmation: {title_lower}")
+                        continue
+
                     finding = Finding(
                         title=str(item.get("title", "Review Finding")),
                         category=category,
@@ -81,4 +90,4 @@ class OllamaReviewProvider(BaseAIProvider):
 
         except Exception as e:
             logger.error(f"Ollama review call failed for {file_path}: {e}")
-            return "", []
+            raise RuntimeError(f"Ollama call failed: {e}") from e

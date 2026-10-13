@@ -118,3 +118,56 @@ export interface TriggerReviewPayload {
   post_comments_to_github?: boolean;
   github_token?: string;
 }
+
+export interface WorkspaceSettings {
+  id: string;
+  workspace_id?: string | null;
+  ai_provider: string;
+  auto_review_enabled: boolean;
+  post_comments_to_github: boolean;
+  severity_threshold: string;
+  deduplication_threshold: number;
+  updated_at?: string;
+}
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  full_name?: string | null;
+  is_active: boolean;
+}
+
+export interface WorkspaceInfo {
+  id: string;
+  name: string;
+  slug: string;
+  role: string;
+}
+
+export interface AuthState {
+  access_token: string;
+  user: UserProfile;
+  workspaces: WorkspaceInfo[];
+  active_workspace?: WorkspaceInfo | null;
+}
+
+export interface ReviewJob {
+  id: string;
+  workspace_id?: string | null;
+  repository_name: string;
+  pr_number?: number | null;
+  commit_sha?: string | null;
+  status: 'QUEUED' | 'RUNNING' | 'COMPLETED' | 'FAILED' | string;
+  review_id?: string | null;
+  error_message?: string | null;
+  retry_count: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface ManualSnippetPayload {
+  filename: string;
+  code: string;
+  repository_label?: string;
+  ai_provider?: string;
+}

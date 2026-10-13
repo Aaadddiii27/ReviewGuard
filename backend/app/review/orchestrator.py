@@ -34,9 +34,14 @@ class ReviewOrchestrator:
         
         logger.info(f"Starting review {review_id} for repo={request.repository} PR={request.pr_number}")
 
+        stage_latencies = {}
+        review_errors = []
+
         # 1. Parse unified diff
+        t_parse_start = time.time()
         diff_text = request.diff_text or ""
         parsed_diff: ParsedDiff = self.diff_parser.parse_patch(diff_text)
+        stage_latencies["diff_parse_ms"] = int((time.time() - t_parse_start) * 1000)
         
         raw_findings: List[Finding] = []
         ai_summaries: List[str] = []
@@ -99,25 +104,30 @@ class ReviewOrchestrator:
 
             # A. Static code analysis
             annotated_diff = parsed_diff.get_annotated_diff_code(file_path)
+            t_static_start = time.time()
             static_findings = self.static_analyzer.analyze_file(
                 file_path=file_path,
                 code_content=code_content,
                 modified_lines=modified_lines,
                 is_partial_reconstruction=is_partial,
             )
+            stage_latencies["static_analysis_ms"] = stage_latencies.get("static_analysis_ms", 0) + int((time.time() - t_static_start) * 1000)
             raw_findings.extend(static_findings)
-
 
             # B. AI Semantic Review (only if annotated diff contains code)
             if annotated_diff.strip():
-                ai_summary, ai_findings = await self.ai_engine.review_file_diff(
+                t_ai_start = time.time()
+                ai_summary, ai_findings, ai_err = await self.ai_engine.review_file_diff(
                     file_path=file_path,
                     annotated_diff=annotated_diff,
                     pr_title=request.pr_title or "",
                     pr_description=request.pr_description or ""
                 )
+                stage_latencies["ai_review_ms"] = stage_latencies.get("ai_review_ms", 0) + int((time.time() - t_ai_start) * 1000)
                 if ai_summary:
                     ai_summaries.append(ai_summary)
+                if ai_err:
+                    review_errors.append(ai_err)
                 raw_findings.extend(ai_findings)
 
         # 3. Line validation and calibration
@@ -128,13 +138,14 @@ class ReviewOrchestrator:
                     closest_line = parsed_diff.get_closest_diff_line(finding.file, finding.line)
                     if closest_line:
                         finding.line = closest_line
-                    # If still not in diff, leave line or clear it so it doesn't break GitHub PR comment
             
             # 4. Severity Calibration
             self.severity_engine.apply_to_finding(finding)
 
         # 5. Deduplication and Suppression
+        t_dedup_start = time.time()
         active_findings, suppressed_findings, dedup_stats = self.deduplication_engine.deduplicate(raw_findings)
+        stage_latencies["deduplication_ms"] = int((time.time() - t_dedup_start) * 1000)
 
         duration_ms = int((time.time() - start_time) * 1000)
 
@@ -146,8 +157,14 @@ class ReviewOrchestrator:
             duplicates_suppressed=len(suppressed_findings),
             ai_summaries=ai_summaries,
             duration_ms=duration_ms,
-            engine_used=self.ai_engine.provider_name
+            engine_used=self.ai_engine.provider_name,
+            stage_latencies=stage_latencies,
+            errors=review_errors if review_errors else None
         )
+
+        overall_status = "COMPLETED"
+        if review_errors:
+            overall_status = "PARTIAL" if active_findings else "FAILED"
 
         result = ReviewResult(
             id=review_id,
@@ -155,7 +172,8 @@ class ReviewOrchestrator:
             pr_number=request.pr_number,
             commit_sha=request.commit_sha,
             pr_title=request.pr_title,
-            status="COMPLETED",
+            status=overall_status,
+            error_details="; ".join(review_errors) if review_errors else None,
             summary=summary,
             findings=active_findings,
             suppressed_findings=suppressed_findings,
